@@ -178,6 +178,7 @@ class HlsFD(FragmentFD):
         discontinuity_count = 0
         frag_index = 0
         ad_frag_next = False
+        #breakpoint()
         for line in s.splitlines():
             line = line.strip()
             if line:
@@ -206,9 +207,21 @@ class HlsFD(FragmentFD):
                     if format_index and discontinuity_count != format_index:
                         continue
                     if frag_index > 0:
-                        self.report_error(
+                        self.report_warning(
                             'Initialization fragment found after media fragments, unable to download')
-                        return False
+                        if discontinuity_count == 1:
+                            first_ctx = ctx
+                            success = self.download_and_append_fragments(ctx, fragments, info_dict, dont_finish=True)
+                        else:
+                            success = success and self.download_and_append_fragments(ctx, fragments, info_dict)
+                        ctx = {
+                            'filename': re.sub(r'\.(?=[^\.]*$)',f'.part{discontinuity_count+1}.', filename),
+                            'total_frags': media_frags - frag_index,
+                            'ad_frags': ad_frags,
+                        }
+                        fragments = []
+                        self._prepare_and_start_frag_download(ctx, info_dict)
+                        #return False
                     frag_index += 1
                     map_info = parse_m3u8_attributes(line[11:])
                     frag_url = urljoin(man_url, map_info.get('URI'))
@@ -375,4 +388,5 @@ class HlsFD(FragmentFD):
                 self.download_and_append_fragments(
                     ctx, fragments, info_dict, pack_func=pack_fragment, finish_func=fin_fragments)
         else:
-            return self.download_and_append_fragments(ctx, fragments, info_dict)
+            return (self.download_and_append_fragments(ctx, fragments, info_dict)
+                and (discontinuity_count == 0 or success and self._finish_frag_download(first_ctx, info_dict)) )
