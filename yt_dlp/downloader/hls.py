@@ -178,7 +178,6 @@ class HlsFD(FragmentFD):
         discontinuity_count = 0
         frag_index = 0
         ad_frag_next = False
-        #breakpoint()
         for line in s.splitlines():
             line = line.strip()
             if line:
